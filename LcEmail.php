@@ -394,8 +394,6 @@ class LcEmail {
         //Fin du message
         $message .= "--" . $separator . "--" . $passage_ligne;
 
-        $this->subject = 'Test';
-
         //Envoie du mail
         $result = mail($this->to, $this->subject, $message, $header);
 
