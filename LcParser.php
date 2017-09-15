@@ -431,7 +431,206 @@ class LcParser {
     }
 
     protected function xml_to_array() {
-        return false;
+        //Initialisation variable
+        $stack = array();
+        $index = 0;
+        $syntax = 'syntax_tag_value';
+        $tag_name = '';
+        $attributes = [];
+        $line = 0;
+        //Traitement
+        $this->fileContent = str_replace("\t", '    ', $this->fileContent);
+        $stack[] = & $this->data;
+        for ($length = strlen($this->fileContent); $index < $length; $index++) {
+            switch ($this->fileContent[$index]) {
+                case '<':
+                    switch ($this->fileContent[$index + 1]) {
+                        case '?':
+                            $index += 2;
+                            $syntax = 'syntax_declaration';
+                            break;
+
+                        case '/':
+                            $index += 2;
+                            $tag_name = '';
+                            $syntax = 'syntax_tag_back_start';
+                            break;
+
+                        default:
+                            $index += 1;
+                            $tag_name = $this->tag_value = '';
+                            $attributes = [];
+                            $syntax = 'syntax_tag_front_start';
+                            break;
+                    }
+                    break;
+                case '/':
+                    switch ($this->fileContent[$index + 1]) {
+                        case '>':
+                            $this->index += 1;
+                            if ($syntax == 'syntax_attribute_name') {
+                                $this->fileContent = substr($this->fileContent, $index);
+                                $index = 0;
+                                $length = strlen($this->fileContent);
+                                $syntax = 'syntax_tag_short';
+                            } else {
+                                $syntax = 'syntax_tag_back_end';
+                            }
+                            break;
+                    }
+                    break;
+                case '>':
+                    switch ($syntax) {
+                        case 'syntax_tag_front_start':
+                        case 'syntax_attribute_name':
+                            $syntax = 'syntax_tag_front_end';
+                            break;
+
+                        default:
+                            $this->fileContent = substr($this->fileContent, $index);
+                            $index = 0;
+                            $length = strlen($this->fileContent);
+                            $syntax = 'syntax_tag_back_end';
+                            break;
+                    }
+                    break;
+                case "\n":
+                    $line++;
+                    break;
+            }
+            $this->{$syntax}();
+        }
+
+        //unset($this->xml);
+    }
+
+    private function syntax_declaration() {
+        if (
+                $this->xml[$this->index] == '?' &&
+                $this->xml[$this->index + 1] == '>'
+        ) {
+            $this->index++;
+            $this->syntax = 'syntax_tag_value';
+        } else {
+            $this->declaration .= $this->xml[$this->index];
+        }
+    }
+
+    // ### END ### Declaration ###
+
+    private function syntax_error() {
+        error_log("Syntax error in XML data. Please check line # {$this->line}.");
+    }
+
+    private function syntax_tag_front_start() {
+        switch ($this->xml[$this->index]) {
+            case ' ':
+                $this->syntax = 'syntax_attribute_name';
+                $this->attribute_name = $this->attribute_value = '';
+                break;
+
+            default:
+                $this->tag_name .= $this->xml[$this->index];
+                break;
+        }
+    }
+
+    private function syntax_tag_front_end() {
+        $node = [];
+        $node[$this->tag_name] = [];
+        if (!empty($this->attributes)) {
+            foreach ($this->attributes as $key => $value) {
+                $node["@{$key}"] = $value;
+            }
+        }
+
+        $current = & $this->stack[count($this->stack) - 1];
+        if (empty($current)) {
+            $current = $node;
+            $this->stack[] = & $current[$this->tag_name];
+        } else {
+            if ($this->is_assoc($current)) {
+                $current = [$current, $node];
+            } else {
+                $current[] = $node;
+            }
+            $this->stack[] = & $current[count($current) - 1][$this->tag_name];
+        }
+
+        $this->syntax = 'syntax_tag_value';
+    }
+
+    private function syntax_tag_short() {
+        $this->syntax_tag_front_end();
+        $this->syntax_tag_back_end();
+    }
+
+    private function syntax_tag_back_start() {
+        $this->tag_name .= $this->xml[$this->index];
+    }
+
+    private function syntax_tag_back_end() {
+        $child = & $this->stack[count($this->stack) - 1];
+        array_pop($this->stack);
+
+        $last = count($this->stack) - 1;
+        if (
+                isset($this->stack[$last][$this->tag_name]) ||
+                isset(end($this->stack[$last])[$this->tag_name])
+        ) {
+            if (empty($child)) {
+                $child = (
+                        (
+                        ($this->tag_value = trim($this->tag_value)) &&
+                        $this->tag_value != ''
+                        ) ?
+                        $this->tag_value :
+                        null
+                        );
+            }
+            $this->tag_value = '';
+            $this->syntax = 'syntax_tag_value';
+        } else {
+            $this->syntax_error();
+        }
+    }
+
+    private function syntax_tag_value() {
+        $this->tag_value .= $this->xml[$this->index];
+    }
+
+    private function syntax_attribute_name() {
+        switch ($this->xml[$this->index]) {
+            case '=':
+            case ' ':
+                break;
+
+            case '"':
+                $this->syntax = 'syntax_attribute_value';
+                break;
+
+            default:
+                $this->attribute_name .= $this->xml[$this->index];
+                break;
+        }
+    }
+
+    private function syntax_attribute_value() {
+        switch ($this->xml[$this->index]) {
+            case '"':
+                $this->syntax = 'syntax_attribute_end';
+                $this->index--;
+                break;
+
+            default:
+                $this->attribute_value .= $this->xml[$this->index];
+                break;
+        }
+    }
+
+    private function syntax_attribute_end() {
+        $this->attributes[$this->attribute_name] = $this->attribute_value;
+        $this->syntax = 'syntax_tag_front_start';
     }
 
     protected function array_to_xml() {
