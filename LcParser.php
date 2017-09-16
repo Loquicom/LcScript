@@ -1,12 +1,12 @@
-<?php
+ï»¿<?php
 
 /* =============================================================================
  * LcParser by Loquicom
- * Ver 0.8
+ * Ver 1.0
  * =========================================================================== */
 
 /*
- * Constante pour la création de l'objet 
+ * Constante pour la cr?ation de l'objet 
  */
 define('INI', 0);
 define('CSV', 1);
@@ -19,14 +19,14 @@ define('XML', 3);
 class LcParser {
 
     /**
-     * Parametre propre aux différents type de parse
+     * Parametre propre aux diff?rents type de parse
      * @var mixed
      */
     protected $params = array(
         'ini_comment' => '#',
         'csv_delimiter' => ';',
         'csv_replace_key' => null,
-        'xml_main_container' => 'main'
+        'xml_main_container' => ''
     );
 
     /**
@@ -36,7 +36,7 @@ class LcParser {
     protected $type = '';
 
     /**
-     * Les types de fichier accepté
+     * Les types de fichier accept?
      * @var string[]
      */
     protected $acceptedType = array(
@@ -47,7 +47,7 @@ class LcParser {
     );
 
     /**
-     * Le tableau de données
+     * Le tableau de donn?es
      * @var mixed 
      */
     protected $data = array();
@@ -59,7 +59,7 @@ class LcParser {
     protected $fileName = '';
 
     /**
-     * Le contenue du fichier (Le string à parser)
+     * Le contenue du fichier (Le string ? parser)
      * @var string
      */
     protected $fileContent = '';
@@ -92,20 +92,20 @@ class LcParser {
             throw new LcScriptError('Type invalide');
         }
 
-        //Si il y a des données on regarde si c'est un fichier a parser ou un tableau a transformer
+        //Si il y a des donn?es on regarde si c'est un fichier a parser ou un tableau a transformer
         if (is_array($data)) {
-            //Sauvegarde des données
+            //Sauvegarde des donn?es
             $this->data = $data;
             //On tente de transformer le tableau dans le type demander
             return $this->transform();
         } else if (is_string($data) && file_exists($data)) {
-            //Sauvegarde des données
+            //Sauvegarde des donn?es
             $this->fileName = $data;
             $this->fileContent = file_get_contents($data);
             //On tente de parser le fichier
             return $this->parse();
         } else if (is_string($data)) {
-            //Sauvegarde des données
+            //Sauvegarde des donn?es
             $this->fileContent = $data;
             //On tente de parser le string
             return $this->parse();
@@ -128,7 +128,7 @@ class LcParser {
                 $this->params['xml_main_container'] = $params['xml_main_container'];
             }
         }
-        //Si params est un string on replace le champ designé par val
+        //Si params est un string on replace le champ design? par val
         if (in_array($params, array('ini_comment', 'csv_delimiter', 'csv_replace_key', 'xml_main_container'))) {
             $this->params[$params] = $val;
         }
@@ -157,12 +157,12 @@ class LcParser {
         //Sinon on verifie qu'il y a deja un fichier de set
         else if (trim($this->fileContent) == '') {
             //Si ce n'est pas le cas erreur
-            throw new LcScriptError('Aucun fichier à parser');
+            throw new LcScriptError('Aucun fichier Ã  parser');
         }
 
         //On appel la bonne fonction
-        $result = false;
         try {
+            $result = false;
             switch ($this->type) {
                 case 'ini' :
                     $result = $this->ini_to_array();
@@ -179,12 +179,12 @@ class LcParser {
                 default :
                     throw new LcScriptError('Type invalide');
             }
+            //En cas d'erreur (result false)
+            if ($result === false) {
+                throw new LcScriptError('Impossible de parser');
+            }
         } catch (Exception $e) {
-            $result = false;
-        }
-        //En cas d'erreur (result false)
-        if ($result === false) {
-            throw new LcScriptError('Impossible de parser');
+            throw new LcScriptError('Impossible de parser : ' . $e->getMessage());
         }
 
         //Retour
@@ -196,15 +196,15 @@ class LcParser {
         if (is_array($data) && !empty($data)) {
             $this->data = $data;
         }
-        //Sinon on verifie qu'il y a deja des données
+        //Sinon on verifie qu'il y a deja des donn?es
         else if (empty($this->data)) {
             //Si ce n'est pas le cas erreur
-            throw new LcScriptError('Aucune données à transformer');
+            throw new LcScriptError('Aucune donnÃ©es Ã  transformer');
         }
 
         //On appel la bonne fonction
-        $result = false;
         try {
+            $result = false;
             switch ($this->type) {
                 case 'ini' :
                     $result = $this->array_to_ini();
@@ -221,12 +221,12 @@ class LcParser {
                 default :
                     throw new LcScriptError('Type invalide');
             }
+            //En cas d'erreur (result false)
+            if ($result === false) {
+                throw new LcScriptError('Impossible de transformer');
+            }
         } catch (Exception $e) {
-            $result = false;
-        }
-        //En cas d'erreur (result false)
-        if ($result === false) {
-            throw new LcScriptError('Impossible de transformer');
+            throw new LcScriptError('Impossible de transformer : ' . $e->getMessage());
         }
 
         //Retour
@@ -245,7 +245,7 @@ class LcParser {
         //Ouverture du fichier
         $file = @fopen($fileName, 'w');
         if ($file === false) {
-            throw new LcScriptError('Impossible d\'écrire dans le fichier');
+            throw new LcScriptError('Impossible d\'Ã©crire dans le fichier');
         }
         //Ecriture
         fputs($file, $this->fileContent);
@@ -263,10 +263,10 @@ class LcParser {
         return $this->fileContent;
     }
 
-    /* ===== Fonction protégée de transformation pour chaque type ===== */
+    /* ===== Fonction prot?g?e de transformation pour chaque type ===== */
 
     protected function ini_to_array() {
-        //Création d'un fichier temporaire
+        //Cr?ation d'un fichier temporaire
         if (!$this->create_file('./lcparser_tmp.ini', $this->fileContent)) {
             return false;
         }
@@ -311,10 +311,10 @@ class LcParser {
         } else {
             $tabKey = $this->params['csv_replace_key'];
         }
-        //Les clef du tableau et le tableau de données
+        //Les clef du tableau et le tableau de donn?es
         $keys = null;
         $data = array();
-        //Création d'un fichier temporaire
+        //Cr?ation d'un fichier temporaire
         if (!$this->create_file('./lcparser_tmp.csv', $this->fileContent)) {
             return false;
         }
@@ -373,7 +373,7 @@ class LcParser {
         if ($csv !== false) {
             $first = true; //Repere du premier tour pour definir les noms des colonnes
             foreach ($array as $subArray) {
-                //Si c'est le 1er tour on définit le nom des colonnes
+                //Si c'est le 1er tour on d?finit le nom des colonnes
                 if ($first) {
                     $clef = array(); //Tableau contenant les clef des colonnes
                     //Si on ne donne aucune clef on prend celle par default
@@ -386,7 +386,7 @@ class LcParser {
                     else if (count($this->params['csv_replace_key']) == count($subArray)) {
                         $clef = $this->params['csv_replace_key'];
                     }
-                    //Sinon si il a une taille différente
+                    //Sinon si il a une taille diff?rente
                     else {
                         $subArrayKey = array_keys($subArray); //Les clef du sous tableau
                         for ($i = 0; $i < count($subArray); $i++) {
@@ -410,7 +410,7 @@ class LcParser {
                 }
             }
             fclose($csv);
-            //On recupére le contenue du fichier
+            //On recup?re le contenue du fichier
             $this->fileContent = file_get_contents('./lcparser_tmp.csv');
             //On supprime et on revoie vrai
             @unlink('./lcparser_tmp.csv');
@@ -431,228 +431,117 @@ class LcParser {
     }
 
     protected function xml_to_array() {
-        //Initialisation variable
-        $stack = array();
-        $index = 0;
-        $syntax = 'syntax_tag_value';
-        $tag_name = '';
-        $attributes = [];
-        $line = 0;
-        //Traitement
-        $this->fileContent = str_replace("\t", '    ', $this->fileContent);
-        $stack[] = & $this->data;
-        for ($length = strlen($this->fileContent); $index < $length; $index++) {
-            switch ($this->fileContent[$index]) {
-                case '<':
-                    switch ($this->fileContent[$index + 1]) {
-                        case '?':
-                            $index += 2;
-                            $syntax = 'syntax_declaration';
-                            break;
+        //Transformation du xml pour le mettre sur une ligne
+        $xmlLine = str_replace(" ", "", str_replace("\n", "", str_replace("\r\n", "", $this->fileContent)));
+        //O9n parcoours la chaine obtenue et on parse
+        $data = array();
+        while (strlen($xmlLine) > 1) {
+            //Si c'est un commentaire ou une fin de ligne on retire la balise du tableau
+            if (in_array(substr($xmlLine, 0, 2), array('</', '<!'))) {
+                $xmlLine = substr($xmlLine, strpos($xmlLine, '>') + 1);
+            }
+            //Sinon on ajoute une clef ou une valeur dans le tableau
+            else {
+                //Clef
+                if ($xmlLine[0] == '<') {
+                    //On recupere la clef
+                    $key = substr($xmlLine, 1, strpos($xmlLine, '>') - 1);
+                    //On raccourcis la chaine
+                    $xmlLine = substr($xmlLine, strpos($xmlLine, '>') + 1);
+                    //On parse
+                    $return = $this->parse_xml($xmlLine, $key);
+                    $data[$key] = $return['data'];
+                    $xmlLine = $return['xmlLine'];
+                }
+            }
+        }
+        $this->data = $data;
+        return true;
+    }
 
-                        case '/':
-                            $index += 2;
-                            $tag_name = '';
-                            $syntax = 'syntax_tag_back_start';
-                            break;
-
-                        default:
-                            $index += 1;
-                            $tag_name = $this->tag_value = '';
-                            $attributes = [];
-                            $syntax = 'syntax_tag_front_start';
-                            break;
-                    }
-                    break;
-                case '/':
-                    switch ($this->fileContent[$index + 1]) {
-                        case '>':
-                            $this->index += 1;
-                            if ($syntax == 'syntax_attribute_name') {
-                                $this->fileContent = substr($this->fileContent, $index);
-                                $index = 0;
-                                $length = strlen($this->fileContent);
-                                $syntax = 'syntax_tag_short';
-                            } else {
-                                $syntax = 'syntax_tag_back_end';
+    private function parse_xml($xmlLine, $key) {
+        //On initialise le tableau de donnÃ©es avec la clef en parametre
+        $data = array();
+        //On parcours le xml jusqu'a una balise fermente
+        $i = 0; //Pour la position des sous balises
+        while (substr($xmlLine, 0, 2 + strlen($key)) != '</' . $key) {
+            //Si c'est un commentaire ou une fin de ligne on retire la balise du tableau
+            if (in_array(substr($xmlLine, 0, 2), array('</', '<!'))) {
+                $xmlLine = substr($xmlLine, strpos($xmlLine, '>') + 1);
+            }
+            //Sinon on ajoute une clef ou une valeur dans le tableau
+            else {
+                //Clef
+                if ($xmlLine[0] == '<') {
+                    //On recupere la clef
+                    $newKey = substr($xmlLine, 1, strpos($xmlLine, '>') - 1);
+                    //On raccourcis la chaine
+                    $xmlLine = substr($xmlLine, strpos($xmlLine, '>') + 1);
+                    //On parse
+                    $return = $this->parse_xml($xmlLine, $newKey);
+                    //v($return['data']);
+                    if ($newKey === array_keys($return['data'])[0]) {
+                        $data[] = $return['data'];
+                    } else {
+                        foreach ($return['data'] as $tab) {
+                            foreach ($tab as $keyTab => $val) {
+                                $j = 0; //Si il y a deja un champ set on decale
+                                if (isset($data[$i]) && is_array($data[$i][$newKey][$j])) {
+                                    while (isset($data[$i][$newKey][$j][$keyTab])) {
+                                        $j++;
+                                    }
+                                    $data[$i][$newKey][$j][$keyTab] = $val;
+                                } else {
+                                    $data[][$newKey][$j][$keyTab] = $val;
+                                }
                             }
-                            break;
+                        }
+                        $i++;
                     }
-                    break;
-                case '>':
-                    switch ($syntax) {
-                        case 'syntax_tag_front_start':
-                        case 'syntax_attribute_name':
-                            $syntax = 'syntax_tag_front_end';
-                            break;
-
-                        default:
-                            $this->fileContent = substr($this->fileContent, $index);
-                            $index = 0;
-                            $length = strlen($this->fileContent);
-                            $syntax = 'syntax_tag_back_end';
-                            break;
-                    }
-                    break;
-                case "\n":
-                    $line++;
-                    break;
-            }
-            $this->{$syntax}();
-        }
-
-        //unset($this->xml);
-    }
-
-    private function syntax_declaration() {
-        if (
-                $this->xml[$this->index] == '?' &&
-                $this->xml[$this->index + 1] == '>'
-        ) {
-            $this->index++;
-            $this->syntax = 'syntax_tag_value';
-        } else {
-            $this->declaration .= $this->xml[$this->index];
-        }
-    }
-
-    // ### END ### Declaration ###
-
-    private function syntax_error() {
-        error_log("Syntax error in XML data. Please check line # {$this->line}.");
-    }
-
-    private function syntax_tag_front_start() {
-        switch ($this->xml[$this->index]) {
-            case ' ':
-                $this->syntax = 'syntax_attribute_name';
-                $this->attribute_name = $this->attribute_value = '';
-                break;
-
-            default:
-                $this->tag_name .= $this->xml[$this->index];
-                break;
-        }
-    }
-
-    private function syntax_tag_front_end() {
-        $node = [];
-        $node[$this->tag_name] = [];
-        if (!empty($this->attributes)) {
-            foreach ($this->attributes as $key => $value) {
-                $node["@{$key}"] = $value;
+                    $xmlLine = $return['xmlLine'];
+                }
+                //Valeur
+                else {
+                    $data[$key] = substr($xmlLine, 0, strpos($xmlLine, '<'));
+                    //On raccourcis la chaine
+                    $xmlLine = substr($xmlLine, strpos($xmlLine, '<'));
+                }
             }
         }
-
-        $current = & $this->stack[count($this->stack) - 1];
-        if (empty($current)) {
-            $current = $node;
-            $this->stack[] = & $current[$this->tag_name];
-        } else {
-            if ($this->is_assoc($current)) {
-                $current = [$current, $node];
-            } else {
-                $current[] = $node;
-            }
-            $this->stack[] = & $current[count($current) - 1][$this->tag_name];
-        }
-
-        $this->syntax = 'syntax_tag_value';
-    }
-
-    private function syntax_tag_short() {
-        $this->syntax_tag_front_end();
-        $this->syntax_tag_back_end();
-    }
-
-    private function syntax_tag_back_start() {
-        $this->tag_name .= $this->xml[$this->index];
-    }
-
-    private function syntax_tag_back_end() {
-        $child = & $this->stack[count($this->stack) - 1];
-        array_pop($this->stack);
-
-        $last = count($this->stack) - 1;
-        if (
-                isset($this->stack[$last][$this->tag_name]) ||
-                isset(end($this->stack[$last])[$this->tag_name])
-        ) {
-            if (empty($child)) {
-                $child = (
-                        (
-                        ($this->tag_value = trim($this->tag_value)) &&
-                        $this->tag_value != ''
-                        ) ?
-                        $this->tag_value :
-                        null
-                        );
-            }
-            $this->tag_value = '';
-            $this->syntax = 'syntax_tag_value';
-        } else {
-            $this->syntax_error();
-        }
-    }
-
-    private function syntax_tag_value() {
-        $this->tag_value .= $this->xml[$this->index];
-    }
-
-    private function syntax_attribute_name() {
-        switch ($this->xml[$this->index]) {
-            case '=':
-            case ' ':
-                break;
-
-            case '"':
-                $this->syntax = 'syntax_attribute_value';
-                break;
-
-            default:
-                $this->attribute_name .= $this->xml[$this->index];
-                break;
-        }
-    }
-
-    private function syntax_attribute_value() {
-        switch ($this->xml[$this->index]) {
-            case '"':
-                $this->syntax = 'syntax_attribute_end';
-                $this->index--;
-                break;
-
-            default:
-                $this->attribute_value .= $this->xml[$this->index];
-                break;
-        }
-    }
-
-    private function syntax_attribute_end() {
-        $this->attributes[$this->attribute_name] = $this->attribute_value;
-        $this->syntax = 'syntax_tag_front_start';
+        return array('data' => $data, 'xmlLine' => $xmlLine);
     }
 
     protected function array_to_xml() {
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\r\n" . '<' . $this->params['xml_main_container'] . '>' . "\r\n";
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\r\n";
+        //Si il y a une balise global par defaut
+        if (trim($this->params['xml_main_container']) != '') {
+            $xml .= '<' . $this->params['xml_main_container'] . '>' . "\r\n";
+        }
         foreach ($this->data as $key => $val) {
             if (is_array($val)) {
-                $xml .= '    <' . $key . '>  ' . "\r\n" . $this->transform_array_to_xml($val) . '</' . $key . '>' . "\r\n";
+                $xml .= '    <' . $key . '>  ' . "\r\n" . $this->transform_xml($val) . '</' . $key . '>' . "\r\n";
             } else {
                 $xml .= '    <' . $key . '>' . $val . '</' . $key . '>' . "\r\n";
             }
         }
-        $this->fileContent = $xml . '</' . $this->params['xml_main_container'] . '>';
+        //Si il y a une balise global par defaut
+        if (trim($this->params['xml_main_container']) != '') {
+            $xml .= '</' . $this->params['xml_main_container'] . '>';
+        } else {
+            //On retire les espaces en trop
+            $xml = str_replace('    <', '<', $xml);
+        }
+        $this->fileContent = $xml;
         return true;
     }
 
-    private function transform_array_to_xml($array, $space = '') {
+    private function transform_xml($array, $space = '') {
         $xml = '    ' . $space;
         $newSpace = $xml;
         foreach ($array as $tab) {
             foreach ($tab as $key => $val) {
                 if (is_array($val)) {
-                    $xml .= '    <' . $key . '>  ' . "\r\n" . $this->transform_array_to_xml($val, $newSpace) . '</' . $key . '>' . "\r\n" . '    ' . $space;
+                    $xml .= '    <' . $key . '>  ' . "\r\n" . $this->transform_xml($val, $newSpace) . '</' . $key . '>' . "\r\n" . '    ' . $space;
                 } else {
                     $xml .= '    <' . $key . '>' . $val . '</' . $key . '>' . "\r\n" . '    ' . $space;
                 }
