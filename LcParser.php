@@ -1,8 +1,7 @@
 ï»¿<?php
-
 /* =============================================================================
  * LcParser by Loquicom
- * Ver 1.0
+ * Ver 1.1
  * =========================================================================== */
 
 /*
@@ -92,7 +91,7 @@ class LcParser {
             throw new LcScriptError('Type invalide');
         }
 
-        //Si il y a des donn?es on regarde si c'est un fichier a parser ou un tableau a transformer
+        //Si il y a des données on regarde si c'est un fichier a parser ou un tableau a transformer
         if (is_array($data)) {
             //Sauvegarde des donn?es
             $this->data = $data;
@@ -275,13 +274,15 @@ class LcParser {
         $matches = array();
         $fichier_ini = null;
         foreach ($ini as $ligne) {
-            $ligne_propre = trim($ligne);
-            if (preg_match("#^\[(.+)\]$#", $ligne_propre, $matches)) {
-                $groupe_curseur = utf8_encode($matches[1]);
-            } else {
-                if ($ligne_propre[0] != $this->params['ini_comment'] && $tableau = explode("=", $ligne, 2)) {
-                    $tableau = array_map('utf8_encode', $tableau);
-                    $fichier_ini[$groupe_curseur][$tableau[0]] = rtrim($tableau[1], "\n\r");
+            if (trim($ligne) != '') {
+                $ligne_propre = trim($ligne);
+                if (preg_match("#^\[(.+)\]$#", $ligne_propre, $matches)) {
+                    $groupe_curseur = utf8_encode($matches[1]);
+                } else {
+                    if ($ligne_propre[0] != $this->params['ini_comment'] && $tableau = explode("=", $ligne, 2)) {
+                        $tableau = array_map('trim', array_map('utf8_encode', $tableau));
+                        $fichier_ini[$groupe_curseur][$tableau[0]] = rtrim($tableau[1], "\n\r");
+                    }
                 }
             }
         }
