@@ -421,6 +421,37 @@ class LcEmailReader {
         //On supprime
         $this->deleteTaggedMessages();
     }
+    
+    /**
+     * Retourne la référence de l'hôte sans la boite mail
+     * @see imap_open
+     * @return string - ex: {host:port\params}
+     */
+    public function getRef() {
+        preg_match('#^{[^}]*}#', $this->host, $ref);
+        return $ref[0];
+    }
+    
+    /**
+     * Retourne la liste des boites email associées a celle ouverte
+     * @param string $pattern - Motif de recherche
+     * @return mixed - Liste des boites email
+     */
+    public function getList($pattern = '*') {
+        return imap_list($this->mbox, $this->getRef(), $pattern);
+    }
+    
+    /**
+     * Renvoie le flux IMAP
+     * @return false|Mbox
+     */
+    public function getMbox(){
+        //Verifie que le flux est ouvert
+        if ($this->checkFlux() === false) {
+            return false;
+        }
+        return $this->mbox;
+    }
 
     /**
      * Retourne le type de contenue de la piece jointe à partir de l'entier
