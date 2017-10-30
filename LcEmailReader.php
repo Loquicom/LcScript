@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmailReader by Loquicom
- * Ver 1.0
+ * Ver 1.1
  * @author Loquicom <contact@loquicom.fr>
  * =========================================================================== */
 
@@ -304,23 +304,43 @@ class LcEmailReader {
      * @param string $name - Le nom des fichiers
      * @return boolean - Reussite ou echec
      */
-    public function saveAttachment($msgNo, $atcPos, $path = './', $name = '') {
-        //Recuperation du contenue de la piece jointe
-        $atc = $this->getAttachment($msgNo, $atcPos);
-        if ($atc === false) {
+    public function saveAllAttachment($msgNo, $path = './', $name = '') {
+        //Recupération de toutes les pieces jointes
+        $actList = $this->getAttachmentsList($msgNo);
+        if ($actList == false) {
             return false;
         }
-        //On definit le nom
-        if ($name == '') {
-            $name = $atc['name'];
+        //Sauvegarde des pieces jointes
+        $return = array();
+        $useFileName = (trim($name) == '') ? true : false; //Indique si le nom utilisé est celui du fichier ou du parametre
+        foreach ($actList as $atc) {
+            //Récupération du nom et de l'extnsion
+            $nameExp = explode('.', $atc['attachmentName']);
+            if (count($nameExp) > 1) {
+                $ext = '.' . $nameExp[count($nameExp) - 1];
+                unset($nameExp[count($nameExp) - 1]);
+                $fileName = implode('.', $nameExp);
+            } else {
+                $fileName = $nameExp[0];
+                $ext = '';
+            }
+            //On definit le nom avec celui du fichier ou celui en parametre
+            if (!$useFileName) {
+                $fileName = $name;
+            }
+            //On cherche un suffixe jusqu'à avoir un nom unique
+            $i = 1;
+            $suffixe = '';
+            while (file_exists($path . $name . $suffixe . $ext)) {
+                $suffixe = ' (' . $i++ . ')';
+            }
+            //Nom final du fichier
+            $fileName = $fileName . $suffixe . $ext;
+            //Sauvegarde du fichier
+            $return[$atc['attachmentName'] . ':' . $atc['atcPos']] = $this->saveAttachment($msgNo, $atc['atcPos'], $path, $fileName);
         }
-        //On verifie que le dossier de destination existe sinon on le créer
-        $path .= ($path[strlen($path) - 1] != '/') ? '/' : '';
-        if (!file_exists($path)) {
-            mkdir($path, 077, true);
-        }
-        //Creation du fichier
-        return (bool) file_put_contents($path . $name, $atc['content']);
+        //Retour
+        return $return;
     }
 
     /**
