@@ -1,12 +1,12 @@
 <?php
 
 /* =============================================================================
- * LcEmailReader by Loquicom
- * Ver 1.1
+ * LcEmailReader
+ * Ver 1.2
  * @author Loquicom <contact@loquicom.fr>
  * =========================================================================== */
 
-class LcEmailReader {
+class EmailReader {
 
     /**
      * Objet boite email
@@ -304,43 +304,30 @@ class LcEmailReader {
      * @param string $name - Le nom des fichiers
      * @return boolean - Reussite ou echec
      */
-    public function saveAllAttachment($msgNo, $path = './', $name = '') {
-        //Recupération de toutes les pieces jointes
-        $actList = $this->getAttachmentsList($msgNo);
-        if ($actList == false) {
+    public function saveAttachment($msgNo, $atcPos, $path = './', $name = '', $allowedMimetype = null) {
+        //Si besoins on verifie le mimetype
+        if (is_array($allowedMimetype) && !empty($allowedMimetype)) {
+            //Si le mimetype n'est pas autorisé
+            if (!$this->getMimetypeAttachment($msgNo, $atcPos, $allowedMimetype)) {
+                return false;
+            }
+        }
+        //Recuperation du contenue de la piece jointe
+        $atc = $this->getAttachment($msgNo, $atcPos);
+        if ($atc === false) {
             return false;
         }
-        //Sauvegarde des pieces jointes
-        $return = array();
-        $useFileName = (trim($name) == '') ? true : false; //Indique si le nom utilisé est celui du fichier ou du parametre
-        foreach ($actList as $atc) {
-            //Récupération du nom et de l'extnsion
-            $nameExp = explode('.', $atc['attachmentName']);
-            if (count($nameExp) > 1) {
-                $ext = '.' . $nameExp[count($nameExp) - 1];
-                unset($nameExp[count($nameExp) - 1]);
-                $fileName = implode('.', $nameExp);
-            } else {
-                $fileName = $nameExp[0];
-                $ext = '';
-            }
-            //On definit le nom avec celui du fichier ou celui en parametre
-            if (!$useFileName) {
-                $fileName = $name;
-            }
-            //On cherche un suffixe jusqu'à avoir un nom unique
-            $i = 1;
-            $suffixe = '';
-            while (file_exists($path . $name . $suffixe . $ext)) {
-                $suffixe = ' (' . $i++ . ')';
-            }
-            //Nom final du fichier
-            $fileName = $fileName . $suffixe . $ext;
-            //Sauvegarde du fichier
-            $return[$atc['attachmentName'] . ':' . $atc['atcPos']] = $this->saveAttachment($msgNo, $atc['atcPos'], $path, $fileName);
+        //On definit le nom
+        if ($name == '') {
+            $name = $atc['name'];
         }
-        //Retour
-        return $return;
+        //On verifie que le dossier de destination existe sinon on le créer
+        $path .= ($path[strlen($path) - 1] != '/') ? '/' : '';
+        if (!file_exists($path)) {
+            mkdir($path, 077, true);
+        }
+        //Creation du fichier
+        return (bool) file_put_contents($path . $name, $atc['content']);
     }
 
     /**
@@ -350,7 +337,7 @@ class LcEmailReader {
      * @param string $name - Le nom des fichiers
      * @return false|boolean[] - Réussite ou echec pour chaque pieces jointes
      */
-    public function saveAllAttachment($msgNo, $path = './', $name = '') {
+    public function saveAllAttachment($msgNo, $path = './', $name = '', $allowedMimetype = null) {
         //Recupération de toutes les pieces jointes
         $actList = $this->getAttachmentsList($msgNo);
         if ($actList == false) {
@@ -358,34 +345,84 @@ class LcEmailReader {
         }
         //Sauvegarde des pieces jointes
         $return = array();
+        $useFileName = (trim($name) == '') ? true : false; //Indique si le nom utilisé est celui du fichier ou du parametre
         foreach ($actList as $atc) {
-            //On definit le nom en fonction du parametre
-            if ($name == '') {
-                $name = $atc['attachmentName'];
+            $continue = true;
+            //Si il y a une liste de type autorisé on verifie
+            if (is_array($allowedMimetype) && !empty($allowedMimetype)) {
+                //Si le mimetype n'est pas autorisé
+                if (!$this->getMimetypeAttachment($msgNo, $atc['atcPos'], $allowedMimetype)) {
+                    $continue = false;
+                }
             }
-            //decoupage du nom et de l'extnsion
-            $nameExp = explode('.', $name);
-            if (count($nameExp) > 1) {
-                $ext = '.' . $nameExp[count($nameExp) - 1];
-                unset($nameExp[count($nameExp) - 1]);
-                $name = implode('.', $nameExp);
-            } else {
-                $name = $nameExp[0];
-                $ext = '';
+            if ($continue) {
+                //Récupération du nom et de l'extnsion
+                $nameExp = explode('.', $atc['attachmentName']);
+                if (count($nameExp) > 1) {
+                    $ext = '.' . $nameExp[count($nameExp) - 1];
+                    unset($nameExp[count($nameExp) - 1]);
+                    $fileName = implode('.', $nameExp);
+                } else {
+                    $fileName = $nameExp[0];
+                    $ext = '';
+                }
+                //On definit le nom avec celui du fichier ou celui en parametre
+                if (!$useFileName) {
+                    $fileName = $name;
+                }
+                //On cherche un suffixe jusqu'à avoir un nom unique
+                $i = 1;
+                $suffixe = '';
+                while (file_exists($path . $name . $suffixe . $ext)) {
+                    $suffixe = ' (' . $i++ . ')';
+                }
+                //Nom final du fichier
+                $fileName = $fileName . $suffixe . $ext;
+                //Sauvegarde du fichier
+                $return[$fileName] = $this->saveAttachment($msgNo, $atc['atcPos'], $path, $fileName);
             }
-            //On cherche un suffixe jusqu'à avoir un nom unique
-            $i = 1;
-            $suffixe = '';
-            while (file_exists($path . $name . $suffixe . $ext)) {
-                $suffixe = ' (' . $i++ . ')';
-            }
-            //Nom final du fichier
-            $name = $name . $suffixe . $ext;
-            //Sauvegarde du fichier
-            $return[$atc['attachmentName'] . ':' . $atc['atcPos']] = $this->saveAttachment($msgNo, $atc['atcPos'], $path, $name);
         }
         //Retour
         return $return;
+    }
+
+    /**
+     * Retourne le mimetype d'un fichier ou si il est present dans le talbeau allowedMimetype
+     * @param int $msgNo - Le numero du message
+     * @param int $atcPos - La position de la piece jointe
+     * @param mixed $allowedMimetype - Extension de fichier autorisé
+     * @return boolean|string - Extension autorisé ou l'extension
+     */
+    public function getMimetypeAttachment($msgNo, $atcPos, $allowedMimetype = null) {
+        //Recup le contenue de la pj
+        $content = $this->getAttachment($msgNo, $atcPos)['content'];
+        //Analyse du mimetype et recup de l'extension
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo === false) {
+            return false;
+        }
+        $mimetype = strtolower(finfo_buffer($finfo, $content)) . ";";
+        $mimetype = substr($mimetype, 0, strpos($mimetype, ";"));
+        //Si on trouve le mimetype text/x-c on vire le mot "double" du document et on reteste le mimetype (possible csv)
+        if (trim($mimetype) == 'text/x-c') {
+            $content = str_replace('double', '', $content);
+            $mime = strtolower(finfo_buffer($finfo, $content)) . ";";
+            $mime = substr($mime, 0, strpos($mime, ";"));
+            if (in_array($mime, array("text/plain", "text/csv"))) { // Si c'est pas un csv on remet le mimetype d'origine
+                $mimetype = $mime;
+            }
+        }
+        var_dump($mimetype);
+        $ext = $this->reverseMimeType($mimetype);
+        //Si on doit verifier que le mimetype est autorisé
+        if (is_array($allowedMimetype) && !empty($allowedMimetype)) {
+            //On regarde si l'extension renvoyé est dans celle autorisé
+            return in_array($ext, $allowedMimetype);
+        }
+        //Sinon retour de l'extension
+        else {
+            return $ext;
+        }
     }
 
     /**
@@ -441,7 +478,7 @@ class LcEmailReader {
         //On supprime
         $this->deleteTaggedMessages();
     }
-    
+
     /**
      * Retourne la référence de l'hôte sans la boite mail
      * @see imap_open
@@ -451,7 +488,7 @@ class LcEmailReader {
         preg_match('#^{[^}]*}#', $this->host, $ref);
         return $ref[0];
     }
-    
+
     /**
      * Retourne la liste des boites email associées a celle ouverte
      * @param string $pattern - Motif de recherche
@@ -460,12 +497,12 @@ class LcEmailReader {
     public function getList($pattern = '*') {
         return imap_list($this->mbox, $this->getRef(), $pattern);
     }
-    
+
     /**
      * Renvoie le flux IMAP
      * @return false|Mbox
      */
-    public function getMbox(){
+    public function getMbox() {
         //Verifie que le flux est ouvert
         if ($this->checkFlux() === false) {
             return false;
@@ -527,6 +564,47 @@ class LcEmailReader {
                 break;
         }
         return $atc;
+    }
+
+    /**
+     * Permet de recupérer le libellé d'un format depuis le mimetype complet. Exemple : application/pdf -> 'pdf'
+     * @param string $mimetype Mimetype pour lequel on souhaite récupérer le format
+     * @return string|false Retourne le format (pdf,doc, etc..) ou false si le format est inconnu
+     */
+    private function reverseMimeType($mimetype) {
+
+        $tabMime = array(
+            'wmf' => array("application/x-httpd-php ", "text/x-c", "text/x-c++", "magnus-internal/shellcgi", "application/x-msdownload", "application/exe", "application/x-exe", "application/dos-exe", "vms/exe", "application/x-winexe", "application/x-dosexec", "application/msdos-windows", "application/x-msdos-program"),
+            'dwg' => array("application/x-httpd-php ", "text/x-c", "text/x-c++", "magnus-internal/shellcgi", "application/x-msdownload", "application/exe", "application/x-exe", "application/dos-exe", "vms/exe", "application/x-winexe", "application/x-dosexec", "application/msdos-windows", "application/x-msdos-program"),
+            'exe' => array("application/octet-stream", "application/x-httpd-php ", "text/x-c", "text/x-c++", "magnus-internal/shellcgi", "application/x-msdownload", "application/exe", "application/x-exe", "application/dos-exe", "vms/exe", "application/x-winexe", "application/x-dosexec", "application/msdos-windows", "application/x-msdos-program"),
+            'zip' => array("application/zip", "application/x-zip", "application/x-zip-compressed", "application/x-compress", "application/x-compressed", "multipart/x-zip", "application/x-rar-compressed"),
+            'pdf' => array("application/pdf"),
+            'doc' => array("application/msword"),
+            'docx' => array("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.wordprocessingml"),
+            'xls' => array("application/vnd.ms-excel"),
+            'xlsx' => array("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.spreadsheetml"),
+            'ppt' => array("application/vnd.ms-powerpoint"),
+            'pptx' => array("application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/vnd.openxmlformats-officedocument.presentationml"),
+            'odt' => array("application/vnd.oasis.opendocument.text"),
+            'odg' => array("application/vnd.oasis.opendocument.graphics"),
+            'ods' => array("application/vnd.oasis.opendocument.spreadsheet"),
+            'odp' => array("application/vnd.oasis.opendocument.presentation"),
+            'rtf' => array("application/rtf"),
+            'xml' => array("text/plain", "text/xml", "application/xml"),
+            'gif' => array("image/gif"),
+            'jpg' => array("image/jpeg", "image/pjpeg"),
+            'png' => array("image/png", "image/x-png"),
+            'csv' => array("text/plain", "text/csv"),
+            'php' => array("text/php", "text/x-php", "application/php", "application/x-php")
+        );
+
+        foreach ($tabMime as $type => $val) {
+            if (in_array($mimetype, $val)) {
+                return $type;
+            }
+        }
+
+        return false;
     }
 
 }
