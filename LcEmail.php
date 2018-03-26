@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmail by Loquicom
- * Ver 1.2
+ * Ver 1.4
  * =========================================================================== */
 
 class LcEmail {
@@ -12,6 +12,12 @@ class LcEmail {
      * @var string
      */
     private $format = 'html';
+
+    /**
+     * Si le message en html possede une version en texte
+     * @var boolean
+     */
+    private $hasText = false;
 
     /**
      * L'expediteur
@@ -219,7 +225,36 @@ class LcEmail {
      */
     public function message($message) {
         if (is_string($message)) {
-            $this->message = $message;
+            //Si il y a un message texte
+            if($this->hasText){
+                $this->message['html'] = $message;
+            }
+            //Sinon ajout du message
+            else {
+                $this->message = $message;
+            }
+        }
+        return $this;
+    }
+
+    /**
+     * Ajoute un message texte au message html
+     * /!\ Ne marche que pours les messages en format html 
+     * @params string $message
+     * @return $this
+     */
+    public function addTextMessage($message){
+        if($this->format == 'html' && is_string($message)){
+            //Si il existe deja un message texte
+            if($this->hasText){
+                $this->message['txt'] = $message; 
+            }
+            //Sinon recup ancien contenue pour faire un tableau
+            else {
+                $msg = $this->message;
+                $this->message = array('html' => $msg, 'txt' => $message);
+                $this->hasText = true;
+            }
         }
         return $this;
     }
@@ -320,6 +355,7 @@ class LcEmail {
      */
     public function clear() {
         $this->format = 'html';
+        $this->hasText = false;
         $this->from = null;
         $this->to = null;
         $this->reply = null;
@@ -360,18 +396,40 @@ class LcEmail {
         }
         $header .= "Mime-Version: 1.0" . $passage_ligne;
         $header .= "X-Priority: " . $this->priority . $passage_ligne;
-        $header .= "X-Mailer: LcEmail 1.2 " . $passage_ligne;
-        $header .= "Date:" . date("D, d M Y h:s:i") . " +0200" . $passage_ligne;
+        $header .= "X-Mailer: LcEmail 1.4 " . $passage_ligne;
+        $header .= "Date:" . date("D, d M Y H:s:i") . " +0200" . $passage_ligne;
         $header .= "Content-Transfer-Encoding: 7bit" . $passage_ligne;
         $header .= "Content-Type: multipart/mixed;boundary=" . $separator . $passage_ligne;
 
         //Message de l'email
         $message = "--" . $separator . $passage_ligne;
         if ($this->format == 'html') {
-            //Email format html
-            $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
-            $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-            $message .= $this->message . $passage_ligne;
+            //Si il y a un message texte avec
+            if($this->hasText){
+                //Email format html
+                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+                $message .= $this->message['html'] . $passage_ligne;
+                //Separateur
+                $message .= "--" . $separator . $passage_ligne;
+                //Email format text
+                $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+                $message .= $this->message['txt'] . $passage_ligne;
+            }
+            //Sinon création avec un message texte
+            else {
+                //Email format html
+                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+                $message .= $this->message . $passage_ligne;
+                //Separateur
+                $message .= "--" . $separator . $passage_ligne;
+                //Email format text
+                $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+                $message .= strip_tags($this->message) . $passage_ligne;
+            } 
         } else {
             //Email format text
             $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
