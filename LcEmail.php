@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmail by Loquicom
- * Ver 1.4
+ * Ver 1.5
  * =========================================================================== */
 
 class LcEmail {
@@ -18,6 +18,12 @@ class LcEmail {
      * @var boolean
      */
     private $hasText = false;
+
+    /**
+     * Si le message html ne doit pas etre envoyé avec une version texte
+     * @var boolean
+     */
+    private $noText = false;
 
     /**
      * L'expediteur
@@ -83,6 +89,16 @@ class LcEmail {
             $this->format = $format;
         }
         return $this;
+    }
+
+    /**
+     * Indique si le message en html doit être accompagné d'un message texte
+     * @param boolean $bool
+     */
+    public function htmlWithText($bool){
+        if(is_bool($bool)){
+            $this->noText = $bool;
+        }
     }
 
     /**
@@ -239,7 +255,7 @@ class LcEmail {
 
     /**
      * Ajoute un message texte au message html
-     * /!\ Ne marche que pours les messages en format html 
+     * /!\ Ne marche que pour les messages en format html 
      * @params string $message
      * @return $this
      */
@@ -256,6 +272,9 @@ class LcEmail {
                 $this->hasText = true;
             }
         }
+        //On desactive le noText
+        $this->noText = false;
+        //Retour
         return $this;
     }
 
@@ -356,6 +375,7 @@ class LcEmail {
     public function clear() {
         $this->format = 'html';
         $this->hasText = false;
+        $this->noText = false;
         $this->from = null;
         $this->to = null;
         $this->reply = null;
@@ -410,12 +430,15 @@ class LcEmail {
                 $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
                 $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
                 $message .= $this->message['html'] . $passage_ligne;
-                //Separateur
-                $message .= "--" . $separator . $passage_ligne;
-                //Email format text
-                $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
-                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-                $message .= $this->message['txt'] . $passage_ligne;
+                //Si il doit y avoir une version texte
+                if(!$this->noText){
+                    //Separateur
+                    $message .= "--" . $separator . $passage_ligne;
+                    //Email format text
+                    $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
+                    $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+                    $message .= $this->message['txt'] . $passage_ligne;
+                }
             }
             //Sinon création avec un message texte
             else {
@@ -423,12 +446,15 @@ class LcEmail {
                 $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
                 $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
                 $message .= $this->message . $passage_ligne;
-                //Separateur
-                $message .= "--" . $separator . $passage_ligne;
-                //Email format text
-                $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
-                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-                $message .= strip_tags($this->message) . $passage_ligne;
+                //Si il doit y avoir une version texte
+                if(!$this->noText){
+                    //Separateur
+                    $message .= "--" . $separator . $passage_ligne;
+                    //Email format text
+                    $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
+                    $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+                    $message .= strip_tags($this->message) . $passage_ligne;
+                }
             } 
         } else {
             //Email format text
