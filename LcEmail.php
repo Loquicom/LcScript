@@ -416,7 +416,7 @@ class LcEmail {
         }
         $header .= "Mime-Version: 1.0" . $passage_ligne;
         $header .= "X-Priority: " . $this->priority . $passage_ligne;
-        $header .= "X-Mailer: LcEmail 1.4 " . $passage_ligne;
+        $header .= "X-Mailer: LcEmail 1.5 " . $passage_ligne;
         $header .= "Date:" . date("D, d M Y H:s:i") . " +0200" . $passage_ligne;
         $header .= "Content-Transfer-Encoding: 7bit" . $passage_ligne;
         $header .= "Content-Type: multipart/mixed;boundary=" . $separator . $passage_ligne;
