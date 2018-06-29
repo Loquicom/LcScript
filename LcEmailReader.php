@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmailReader
- * Ver 1.2
+ * Ver 1.2.1
  * @author Loquicom <contact@loquicom.fr>
  * =========================================================================== */
 
@@ -747,6 +747,14 @@ class EmailReader {
         );
 
         foreach ($tabMime as $type => $val) {
+            //Si c'est un string
+            if(!is_array($val)){
+                //Regarde si ll sont identiques
+                if($mimetype === $val){
+                    return $type;
+                }
+            }
+            //Regarde si dans le tableau
             if (in_array($mimetype, $val)) {
                 return $type;
             }
