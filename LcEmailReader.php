@@ -6,7 +6,7 @@
  * @author Loquicom <contact@loquicom.fr>
  * =========================================================================== */
 
-class EmailReader {
+class LcEmailReader {
 
     /**
      * Objet boite email
