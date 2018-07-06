@@ -370,7 +370,7 @@ class LcFeistel {
     /*
      * Les fonctions qui suivent prennent toutes un nombre binaire de 2 bit en parametre
      * et renvoyent un nombre de 2 bit en sortie.
-     * Les fonctions ajouté par l'utilisateur doivent avoir le même comportement
+     * Les fonctions ajoutées par l'utilisateur doivent avoir le même comportement
      */
 
     protected function f1($bin) {
