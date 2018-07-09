@@ -193,7 +193,7 @@ class LcFeistel {
      * @param int $length - Le nombre de bit par bloc (entier > 0)
      */
     public static function set_bit_block_length($length){
-        if(!ctype_digit(strval($nb))){
+        if(!ctype_digit(strval($length))){
             throw new LcFeistel_Exception('$length n\'est pas un entier');
         }
         if($length < 1){
