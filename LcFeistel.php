@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcFeistel by Loquicom
- * Ver 1.2
+ * Ver 1.3
  * =========================================================================== */
 
 define("LCFEISTEL_NONE", 0);
@@ -138,7 +138,7 @@ class LcFeistel {
         //Découpe du nombre
         $data = explode('.', '' . $data);
         if (count($data) != 2) {
-            throw new LcFeistel_Exception("Erreur");
+            throw new LcFeistel_Exception("Données mal formées");
         }
         //Préparation de la données
         $bin = $this->cut_bin($this->complete_bin(decbin($data[0]), (int) substr($data[1], 0, strlen($data[1]) - 1)));
@@ -331,39 +331,51 @@ class LcFeistel {
     /**
      * Ajoute la clef aux données
      * @param int $data
+     * @param int $key - La clef [optional] (defaut la clef de l'objet)
      * @return int
      */
-    protected function add_key($data) {
-        if ($this->key % 2 == 0) {
-            $data += $this->key;
+    protected function add_key($data, $key = null) {
+    	//Recup la clef
+    	if($key === null){
+    		$key = $this->key;
+    	}
+    	//Calcul
+        if ($key % 2 == 0) {
+            $data += $key;
         } else {
-            $data += $this->key - floor($this->key / 4);
+            $data += $key - floor($key / 4);
         }
-        if ((int) substr('' . $this->key, 0, 1) < 5) {
-            $data *= floor($this->key / 10);
+        if ((int) substr('' . $key, 0, 1) < 5) {
+            $data *= floor($key / 10);
         } else {
-            $data *= $this->key;
+            $data *= $key;
         }
-        $data -= $this->key * (1 / $this->key);
+        $data -= $key * (1 / $key);
         return $data;
     }
 
     /**
      * Retire la clef des données
      * @param int $data
+     * @param int $key - La clef [optional] (defaut la clef de l'objet)
      * @return int
      */
-    protected function remove_key($data) {
-        $data += $this->key * (1 / $this->key);
-        if ((int) substr('' . $this->key, 0, 1) < 5) {
-            $data /= floor($this->key / 10);
+    protected function remove_key($data, $key = null) {
+    	//Recup la clef
+    	if($key === null){
+    		$key = $this->key;
+    	}
+    	//Calcul
+        $data += $key * (1 / $key);
+        if ((int) substr('' . $key, 0, 1) < 5) {
+            $data /= floor($key / 10);
         } else {
-            $data /= $this->key;
+            $data /= $key;
         }
-        if ($this->key % 2 == 0) {
-            $data -= $this->key;
+        if ($key % 2 == 0) {
+            $data -= $key;
         } else {
-            $data -= $this->key - floor($this->key / 4);
+            $data -= $key - floor($key / 4);
         }
         return $data;
     }
