@@ -7,6 +7,10 @@
 
 class LcCryptoFeistel extends LcFeistel {
 
+	/**
+	 * Taille max des chaines dans un fichier chiffré
+	 * @var int
+	 */
 	protected static $file_split_length = 76;
 
 	/**
@@ -223,6 +227,27 @@ class LcCryptoFeistel extends LcFeistel {
 	}
 
 	/* === Getter / Setter === */
+
+	/**
+	 * Récupère la taille max des chaines dans un fichier chiffré
+	 * @return int - La taille 
+	 */
+	public static function get_file_split_length(){
+		return self::$file_split_length;
+	}
+
+	/**
+	 * Modifie la taille max des chaines dans un fichier chiffré
+	 * @param int $length - La taille
+	 */
+	public static function set_file_split_length($length){
+		//Verfie que la longeur est bien un int
+		if(ctype_digit(strval($length)){
+			throw new LcFeistel_Exception("La longueur n'est pas un string");
+		}
+		//Modifie
+		self::$file_split_length = $length;
+	}
 
 	/**
      * Récupère la clef
