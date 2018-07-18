@@ -242,7 +242,7 @@ class LcCryptoFeistel extends LcFeistel {
 	 */
 	public static function set_file_split_length($length){
 		//Verfie que la longeur est bien un int
-		if(ctype_digit(strval($length)){
+		if(ctype_digit(strval($length))){
 			throw new LcFeistel_Exception("La longueur n'est pas un string");
 		}
 		//Modifie
