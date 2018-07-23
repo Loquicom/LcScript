@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmailReader
- * Ver 1.3.0
+ * Ver 1.3.1
  * @author Loquicom <contact@loquicom.fr>
  * =========================================================================== */
 
@@ -236,8 +236,6 @@ class LcEmailReader {
         //Si il y a des parties
         if (isset($structure->parts) && count($structure->parts)) {
             $parts = $structure->parts;
-            //Place de la 1ere piece jointe
-            $atcPos = 2;
             //Parcours des parties
             for ($i = 1; $i < count($parts); $i++) {
                 $part = $parts[$i];
@@ -246,15 +244,15 @@ class LcEmailReader {
                     //Recup le nom de la PJ
                     $findName = false;
                     $atcmName = "attachment";
-                    if ($part->ifparameters == 1) {
-                        $name = $this->getParameters($part->parameters, 'NAME');
+                    if ($part->ifdparameters == 1) {
+                        $name = $this->getParameters($part->dparameters, 'FILENAME');
                         if ($name !== false) {
                             $atcmName = imap_utf8($name);
                             $findName = true;
                         }
                     }
-                    if ($part->ifdparameters == 1 && !$findName) {
-                        $name = $this->getParameters($part->dparameters, 'FILENAME');
+                    if ($part->ifparameters == 1 && !$findName) {
+                        $name = $this->getParameters($part->parameters, 'NAME');
                         if ($name !== false) {
                             $atcmName = imap_utf8($name);
                             $findName = true;
@@ -263,13 +261,66 @@ class LcEmailReader {
                     //Recup le type
                     $type = $part->type;
                     $typeName = $this->getType($type);
-                    if($part->ifsubtype == 1){
+                    if ($part->ifsubtype == 1) {
                         $typeName .= '/' . strtolower($part->subtype);
                     }
                     //Info PJ
-                    $return[] = array('attachmentName' => $atcmName, 'type' => array('name' => $typeName, 'num' => $type), 'encoding' => array('name' => $this->getEncodeType($part->encoding), 'num' => $part->encoding), 'atcPos' => $atcPos);
+                    $return[] = array('attachmentName' => $atcmName, 'type' => array('name' => $typeName, 'num' => $type), 'encoding' => array('name' => $this->getEncodeType($part->encoding), 'num' => $part->encoding), 'atcPos' => ($i + 1));
                 }
-                $atcPos++;
+            }
+        }
+        //Ferme le flux si besoins
+        if (!$this->keep) {
+            $this->closeFlux();
+        }
+        //Retour
+        return $return;
+    }
+
+    /**
+     * Retourne les informations d'une pièce jointe
+     * @param int $msgNo - Le numero du message
+     * @param int $atcPos - La position de la piece jointe
+     * @return false|mixed - False en cas d'erreur sinon les informations
+     */
+    public function getAttachmentInfo($msgNo, $atcPos) {
+        //Verifie que le flux est ouvert
+        if ($this->checkFlux() === false) {
+            return false;
+        }
+        //Recuperation de la structure du message
+        $structure = imap_fetchstructure($this->mbox, $msgNo);
+        $return = false;
+        //Recuperation de la zone de la PJ
+        if (isset($structure->parts[$atcPos - 1])) {
+            $part = $structure->parts[$atcPos - 1];
+            //Verif que c'est bien une PJ
+            if ($part->ifdisposition && strtolower($part->disposition) == "attachment" && $part->ifdparameters) {
+                //Recup le nom de la PJ
+                $findName = false;
+                $atcmName = "attachment";
+                if ($part->ifdparameters == 1) {
+                    $name = $this->getParameters($part->dparameters, 'FILENAME');
+                    if ($name !== false) {
+                        $atcmName = imap_utf8($name);
+                        $findName = true;
+                    }
+                }
+                if ($part->ifparameters == 1 && !$findName) {
+                    $name = $this->getParameters($part->parameters, 'NAME');
+                    if ($name !== false) {
+                        $atcmName = imap_utf8($name);
+                        $findName = true;
+                    }
+                }
+                //Recup le type
+                $type = $part->type;
+                $typeName = $this->getType($type);
+                if ($part->ifsubtype == 1) {
+                    $typeName .= '/' . strtolower($part->subtype);
+                }
+                //Info PJ
+                $return = array('attachmentName' => $atcmName, 'type' => array('name' => $typeName, 'num' => $type), 'encoding' => array('name' => $this->getEncodeType($part->encoding), 'num' => $part->encoding));
             }
         }
         //Ferme le flux si besoins
@@ -301,15 +352,15 @@ class LcEmailReader {
             //Recup le nom de la PJ
             $findName = false;
             $atcmName = "attachment";
-            if ($part->ifparameters == 1) {
-                $name = $this->getParameters($part->parameters, 'NAME');
+            if ($part->ifdparameters == 1) {
+                $name = $this->getParameters($part->dparameters, 'FILENAME');
                 if ($name !== false) {
                     $atcmName = imap_utf8($name);
                     $findName = true;
                 }
             }
-            if ($part->ifdparameters == 1 && !$findName) {
-                $name = $this->getParameters($part->dparameters, 'FILENAME');
+            if ($part->ifparameters == 1 && !$findName) {
+                $name = $this->getParameters($part->parameters, 'NAME');
                 if ($name !== false) {
                     $atcmName = imap_utf8($name);
                     $findName = true;
