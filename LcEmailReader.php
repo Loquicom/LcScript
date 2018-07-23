@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmailReader
- * Ver 1.2.1
+ * Ver 1.3.0
  * @author Loquicom <contact@loquicom.fr>
  * =========================================================================== */
 
@@ -12,31 +12,31 @@ class LcEmailReader {
      * Objet boite email
      * @var flux IMAP
      */
-    private $mbox = null;
+    protected $mbox = null;
 
     /**
      * L'hote du flux
      * @var string
      */
-    private $host;
+    protected $host;
 
     /**
      * Le login
      * @var string 
      */
-    private $login;
+    protected $login;
 
     /**
      * Le mot de passe
      * @var string
      */
-    private $pass;
+    protected $pass;
 
     /**
      * Garde la connexion au flux ouvert
      * @var boolean 
      */
-    private $keep;
+    protected $keep;
 
     /**
      * Constructeur
@@ -46,10 +46,10 @@ class LcEmailReader {
      * @param string $host - L'hote pour imap_open
      * @param string $login - Le login
      * @param string $pass - Le mot de passe
-     * @param boolean $keep - Maintenir la connexion au flux IMAP [defaut = false]
+     * @param boolean $keep - Maintenir la connexion au flux IMAP [defaut = true]
      * @throws Exception - Impossible de se connecter au flux IMAP
      */
-    public function __construct($host, $login, $pass, $keep = false) {
+    public function __construct($host, $login, $pass, $keep = true) {
         $this->host = $host;
         $this->login = $login;
         $this->pass = $pass;
@@ -243,8 +243,31 @@ class LcEmailReader {
                 $part = $parts[$i];
                 //Si c'est une piece jointe
                 if ($part->ifdisposition && strtolower($part->disposition) == "attachment" && $part->ifdparameters) {
-                    $atcmName = imap_utf8($part->dparameters[0]->value);
-                    $return[] = array('attachmentName' => $atcmName, 'type' => $this->getType($part->type), 'atcPos' => $atcPos);
+                    //Recup le nom de la PJ
+                    $findName = false;
+                    $atcmName = "attachment";
+                    if ($part->ifparameters == 1) {
+                        $name = $this->getParameters($part->parameters, 'NAME');
+                        if ($name !== false) {
+                            $atcmName = imap_utf8($name);
+                            $findName = true;
+                        }
+                    }
+                    if ($part->ifdparameters == 1 && !$findName) {
+                        $name = $this->getParameters($part->dparameters, 'FILENAME');
+                        if ($name !== false) {
+                            $atcmName = imap_utf8($name);
+                            $findName = true;
+                        }
+                    }
+                    //Recup le type
+                    $type = $part->type;
+                    $typeName = $this->getType($type);
+                    if($part->ifsubtype == 1){
+                        $typeName .= '/' . strtolower($part->subtype);
+                    }
+                    //Info PJ
+                    $return[] = array('attachmentName' => $atcmName, 'type' => array('name' => $typeName, 'num' => $type), 'encoding' => array('name' => $this->getEncodeType($part->encoding), 'num' => $part->encoding), 'atcPos' => $atcPos);
                 }
                 $atcPos++;
             }
@@ -263,7 +286,7 @@ class LcEmailReader {
      * @param int $atcPos - La position de la piece jointe
      * @return false|string[] - array('name' => ..., 'content' => ...)
      */
-    public function getAttachment($msgNo, $atcPos) {
+    public function getAttachment($msgNo, $atcPos, $decode = true, $fromType = false) {
         //Verifie que le flux est ouvert
         if ($this->checkFlux() === false) {
             return false;
@@ -271,23 +294,42 @@ class LcEmailReader {
         //Récupération du type et du nom de la piece jointe
         $structure = imap_fetchstructure($this->mbox, $msgNo);
         if (isset($structure->parts[$atcPos - 1])) {
-            $type = $structure->parts[$atcPos - 1]->type;
-            if ($structure->parts[$atcPos - 1]->ifdparameters) {
-                $name = imap_utf8($structure->parts[$atcPos - 1]->dparameters[0]->value);
-            } else {
-                $name = 'attachment';
+            $part = $structure->parts[$atcPos - 1];
+            //Recup type et encode de la pj
+            $type = $part->type;
+            $encode = $part->encoding;
+            //Recup le nom de la PJ
+            $findName = false;
+            $atcmName = "attachment";
+            if ($part->ifparameters == 1) {
+                $name = $this->getParameters($part->parameters, 'NAME');
+                if ($name !== false) {
+                    $atcmName = imap_utf8($name);
+                    $findName = true;
+                }
+            }
+            if ($part->ifdparameters == 1 && !$findName) {
+                $name = $this->getParameters($part->dparameters, 'FILENAME');
+                if ($name !== false) {
+                    $atcmName = imap_utf8($name);
+                    $findName = true;
+                }
             }
         } else {
             return false;
         }
         //Recupération de la piece jointe
         $atc = imap_fetchbody($this->mbox, $msgNo, $atcPos);
-        //Decodage de la piece jointe
-        $return = array('name' => $name, 'content' => $this->decodeValue($atc, $type));
-        //Ferme le flux si besoins
-        if (!$this->keep) {
-            $this->closeFlux();
+        //Information de la piece jointe
+        $return = array('name' => $atcmName);
+        if ($decode) {
+            if ($fromType) {
+                $atc = $this->decodeValueFromType($atc, $type);
+            } else {
+                $atc = $this->decodeValue($atc, $encode);
+            }
         }
+        $return['content'] = $atc;
         //Ferme le flux si besoins
         if (!$this->keep) {
             $this->closeFlux();
@@ -394,8 +436,11 @@ class LcEmailReader {
      * @return boolean|string - Extension autorisé ou l'extension
      */
     public function getMimetypeAttachment($msgNo, $atcPos, $allowedMimetype = null) {
-        //Recup le contenue de la pj
-        $content = $this->getAttachment($msgNo, $atcPos)['content'];
+        //Recup le contenue et l'extension de la pj
+        $atc = $this->getAttachment($msgNo, $atcPos);
+        $content = $atc['content'];
+        $name = explode('.', $atc['name']);
+        $fileExt = $name[count($name) - 1];
         //Analyse du mimetype et recup de l'extension
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         if ($finfo === false) {
@@ -412,8 +457,7 @@ class LcEmailReader {
                 $mimetype = $mime;
             }
         }
-        var_dump($mimetype);
-        $ext = $this->reverseMimeType($mimetype);
+        $ext = $this->reverseMimeType($mimetype, $fileExt);
         //Si on doit verifier que le mimetype est autorisé
         if (is_array($allowedMimetype) && !empty($allowedMimetype)) {
             //On regarde si l'extension renvoyé est dans celle autorisé
@@ -428,6 +472,7 @@ class LcEmailReader {
     /**
      * Tag un message avec le flag delete
      * @param int $msgNo - Le numero du message
+     * @return boolean
      */
     public function deleteTag($msgNo) {
         //Verifie que le flux est ouvert
@@ -443,6 +488,7 @@ class LcEmailReader {
 
     /**
      * Supprimme tous les messages avec le flag delete
+     * @return boolean
      */
     public function deleteTaggedMessages() {
         //Verifie que le flux est ouvert
@@ -454,15 +500,21 @@ class LcEmailReader {
         if (!$this->keep) {
             $this->closeFlux();
         }
+        return true;
     }
 
     /**
      * Supprimme le messegage + tous les messages avec le flag delete
      * @param int $msgNo - Le numero du message
+     * @return boolean
      */
     public function deleteMessage($msgNo) {
+        if (!$this->keep) {
+            return false;
+        }
         $this->deleteTag($msgNo);
         $this->deleteTaggedMessages();
+        return true;
     }
 
     /**
@@ -511,27 +563,45 @@ class LcEmailReader {
     }
 
     /**
+     * Retourne la valeur d'une clef dans le tableaux d'objet (d)parameters
+     * @param object $params - Le tableau d'objet
+     * @param string $key - La clef
+     * @return false|mixed - False si la clef n'existe pas ou la valeur
+     */
+    protected function getParameters($params, $key) {
+        $key = strtoupper($key);
+        foreach ($params as $param) {
+            if (strtoupper($param->attribute) == $key) {
+                return $param->value;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Retourne le type de contenue de la piece jointe à partir de l'entier
      * @param int $type - Entier indiquant le type
      * @return string
      */
-    private function getType($type) {
+    protected function getType($type) {
         switch ($type) {
-            case 0:
+            case TYPETEXT:
                 return "text";
-            case 1:
+            case TYPEMULTIPART:
                 return "multipart";
-            case 2:
+            case TYPEMESSAGE:
                 return "message";
-            case 3:
+            case TYPEAPPLICATION:
                 return "application";
-            case 4:
+            case TYPEAUDIO:
                 return "audio";
-            case 5:
+            case TYPEIMAGE:
                 return "image";
-            case 6:
+            case TYPEVIDEO:
                 return "video";
-            case 7:
+            case TYPEMODEL:
+                return "model";
+            case TYPEOTHER:
                 return "other";
             default:
                 return "";
@@ -539,27 +609,79 @@ class LcEmailReader {
     }
 
     /**
-     * Décode le contenu d'une piece jointe
+     * Retourne le type d'encodage de la piece jointe à partir de l'entier
+     * @param int $encode - Entier indiquant le type
+     * @return string
+     */
+    protected function getEncodeType($encode) {
+        switch ($encode) {
+            case ENC7BIT:
+                return "7bit";
+            case ENC8BIT:
+                return "8bit";
+            case ENCBINARY:
+                return "binary";
+            case ENCBASE64;
+                return "base64";
+            case ENCQUOTEDPRINTABLE:
+                return "quoted-printable";
+            case ENCOTHER:
+                return "other";
+            default :
+                return "";
+        }
+    }
+
+    /**
+     * Décode le contenu d'une piece jointe en fonction de son type
+     * /!\ Le type peut diffèrer de l'encodage veuillez plutot utiliser decodeValue
      * @param string $atc - La piece jointe
      * @param integer $type - Le type de contenu
      * @return piece jointe décodé
      */
-    private function decodeValue($atc, $type) {
+    protected function decodeValueFromType($atc, $type) {
         switch ($type) {
-            case 0: //text
-            case 1: //multipart
+            case TYPETEXT: //text
+            case TYPEMULTIPART: //multipart
                 $atc = imap_8bit($atc);
                 break;
-            case 2: //message
+            case TYPEMESSAGE: //message
                 $atc = imap_binary($atc);
                 break;
-            case 3: //application
-            case 5: //image
-            case 6: //video
-            case 7: //other
+            case TYPEAPPLICATION: //application
+            case TYPEIMAGE: //image
+            case TYPEVIDEO: //video
+            case TYPEMODEL: //model
+            case TYPEOTHER: //other
                 $atc = imap_base64($atc);
                 break;
-            case 4: //audio
+            case TYPEAUDIO: //audio
+                $atc = imap_qprint($atc);
+                break;
+        }
+        return $atc;
+    }
+
+    /**
+     * Décode le contenu d'une piece jointe
+     * @param string $atc - La piece jointe
+     * @param integer $encode - Le type d'encodage du contenu
+     * @return piece jointe décodé
+     */
+    protected function decodeValue($atc, $encode) {
+        switch ($encode) {
+            case ENC7BIT:
+            case ENC8BIT:
+                $atc = imap_8bit($atc);
+                break;
+            case ENCBINARY:
+                $atc = imap_binary($atc);
+                break;
+            case ENCBASE64:
+            case ENCOTHER:
+                $atc = imap_base64($atc);
+                break;
+            case ENCQUOTEDPRINTABLE:
                 $atc = imap_qprint($atc);
                 break;
         }
@@ -568,11 +690,13 @@ class LcEmailReader {
 
     /**
      * Permet de recupérer le libellé d'un format depuis le mimetype complet. Exemple : application/pdf -> 'pdf'
-     * @param string $mimetype Mimetype pour lequel on souhaite récupérer le format
+     * @param string $mimetype - Mimetype pour lequel on souhaite récupérer le format
+     * @param string $fileExt [optional] - L'extension du fichier pour regarder en priorité si le mimetype correspond
+     * (Permet d'eviter les probleme pour les mimetype qui correspondent à plusieurs extension comme text/plain)
      * @return string|false Retourne le format (pdf,doc, etc..) ou false si le format est inconnu
      */
-    private function reverseMimeType($mimetype) {
-
+    protected function reverseMimeType($mimetype, $fileExt = null) {
+        //Tableau des mimes types
         $tabMime = array(
             'hqx' => array('application/mac-binhex40', 'application/mac-binhex', 'application/x-binhex40', 'application/x-mac-binhex40'),
             'cpt' => 'application/mac-compactpro',
@@ -745,17 +869,32 @@ class LcEmailReader {
             'ott' => 'application/vnd.oasis.opendocument.text-template',
             'oth' => 'application/vnd.oasis.opendocument.text-web'
         );
-
+        //Si l'extension du fichier est indiquée
+        if($fileExt !== null && trim($fileExt) != ''){
+            //Regarde si le mimetype indiqué est dans la clef de l'extension du fichier
+            $fileExt = strtolower($fileExt);
+            if(isset($tabMime[$fileExt])){
+                $mimelist = $tabMime[$fileExt];
+                if(!is_array($mimelist)){
+                    $mimelist = array($mimelist);
+                }
+                //Recherche
+                if(in_array($mimetype, $mimelist)){
+                    return $fileExt;
+                }
+            }
+        }
+        //Parcours le tableau de mimetype pour trouver l'extension
         foreach ($tabMime as $type => $val) {
             //Si c'est un string
-            if(!is_array($val)){
+            if (!is_array($val)) {
                 //Regarde si ll sont identiques
-                if($mimetype === $val){
+                if ($mimetype === $val) {
                     return $type;
                 }
             }
             //Regarde si dans le tableau
-            if (in_array($mimetype, $val)) {
+            else if (in_array($mimetype, $val)) {
                 return $type;
             }
         }
