@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmail by Loquicom
- * Ver 1.5
+ * Ver 1.5.1
  * =========================================================================== */
 
 class LcEmail {
@@ -418,7 +418,7 @@ class LcEmail {
         $header .= "X-Priority: " . $this->priority . $passage_ligne;
         $header .= "X-Mailer: LcEmail 1.5 " . $passage_ligne;
         $header .= "Date:" . date("D, d M Y H:s:i") . " +0200" . $passage_ligne;
-        $header .= "Content-Transfer-Encoding: 7bit" . $passage_ligne;
+        $header .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
         $header .= "Content-Type: multipart/mixed;boundary=" . $separator . $passage_ligne;
 
         //Message de l'email
@@ -468,9 +468,9 @@ class LcEmail {
             foreach ($this->attach as $pj) {
                 $content = chunk_split(base64_encode(file_get_contents($pj['path'])));
                 $message .= "--" . $separator . $passage_ligne;
-                $message .= "Content-Type: " . filetype($pj['path']) . "; name=\"" . $pj['name'] . "\"" . $passage_ligne;
+                $message .= "Content-Type: " . mime_content_type($pj['path']) . "; name=\"" . $pj['name'] . "\"" . $passage_ligne;
                 $message .= "Content-Transfer-Encoding: base64" . $passage_ligne;
-                $message .= "Content-Disposition: attachment" . $passage_ligne;
+                $message .= "Content-Disposition: attachment; size=" . filesize($pj['path']) . $passage_ligne;
                 $message .= $content . $passage_ligne;
             }
         }
@@ -481,7 +481,7 @@ class LcEmail {
         //Envoie du mail
         $result = mail($this->to, $this->subject, $message, $header);
 
-        //Clear si demand�
+        //Clear si demandé
         if ($clear) {
             $this->clear();
         }
