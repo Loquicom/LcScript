@@ -2,7 +2,7 @@
 
 /* =============================================================================
  * LcEmail by Loquicom
- * Ver 1.5.1
+ * Ver 1.5.2
  * =========================================================================== */
 
 class LcEmail {
@@ -104,13 +104,17 @@ class LcEmail {
     /**
      * L'expediteur de l'email
      * @param string $email - L'email de l'expediteur
-     * @param string $name - Le nom de l'expediteur
+     * @param string $name [optional] - Le nom de l'expediteur (defaut l'adresse email)
      * @return $this
      */
-    public function from($email, $name) {
-        if ((bool) filter_var($email, FILTER_VALIDATE_EMAIL) && trim($name) != '') {
+    public function from($email, $name = null) {
+        if ((bool) filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->from['email'] = $email;
-            $this->from['name'] = $name;
+            if($name !== null && trim($name) != ''){
+                $this->from['name'] = $name;
+            } else {
+                $this->from['name'] = $email;
+            }        
         }
         return $this;
     }
@@ -145,13 +149,17 @@ class LcEmail {
     /**
      * L'email de reponse
      * @param string $email - L'email de reponse
-     * @param string $name - Le nom de l'email de reponse
+     * @param string $name [optional] - Le nom de l'expediteur (defaut l'adresse email)
      * @return $this
      */
     public function reply($email, $name) {
-        if ((bool) filter_var($email, FILTER_VALIDATE_EMAIL) && trim($name) != '') {
+        if ((bool) filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->reply['email'] = $email;
-            $this->reply['name'] = $name;
+            if($name !== null && trim($name) != ''){
+                $this->reply['name'] = $name;
+            } else {
+                $this->reply['name'] = $email;
+            }
         }
         return $this;
     }
@@ -211,7 +219,7 @@ class LcEmail {
     }
 
     /**
-     * Change la priorit� du mail
+     * Change la priorité du mail
      * @param int|string $priority
      * @return $this
      */
@@ -280,7 +288,7 @@ class LcEmail {
 
     /**
      * Ajoute une piece jointe
-     * @param string $path - Le chemin d'acc�s au fichier
+     * @param string $path - Le chemin d'accès au fichier
      * @param string $name - Le nom du fichier dans l'email
      * @return $this
      */
@@ -389,7 +397,7 @@ class LcEmail {
 
     /**
      * Envoie l'email
-     * @param boolean $clear - Reinitailis� les infos de l'email apr�s envoie
+     * @param boolean $clear - Reinitailise les infos de l'email après envoie
      * @return boolean
      */
     public function send($clear = true) {
@@ -402,10 +410,11 @@ class LcEmail {
         $passage_ligne = "\r\n";
         //Separateur
         $separator = md5(rand());
+        $separator_msg = md5(uniqid(rand()));
 
         //Header de l'email
         $header = "From: " . $this->from['name'] . " <" . $this->from['email'] . ">" . $passage_ligne;
-        if ($this->reply !== null && false) {
+        if ($this->reply !== null) {
             $header .= "Reply-to: " . $this->reply['name'] . " <" . $this->reply['email'] . ">" . $passage_ligne;
         }
         if ($this->cc !== null) {
@@ -418,59 +427,65 @@ class LcEmail {
         $header .= "X-Priority: " . $this->priority . $passage_ligne;
         $header .= "X-Mailer: LcEmail 1.5 " . $passage_ligne;
         $header .= "Date:" . date("D, d M Y H:s:i") . " +0200" . $passage_ligne;
-        $header .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-        $header .= "Content-Type: multipart/mixed;boundary=" . $separator . $passage_ligne;
+        //$header .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
+        $header .= "Content-Type: multipart/mixed; boundary=\"" . $separator . "\"" . $passage_ligne;
 
         //Message de l'email
         $message = "--" . $separator . $passage_ligne;
+        //Separateur de l'email
+        $message .= "Content-Type: multipart/alternative; boundary=\"" . $separator_msg . "\"" . $passage_ligne . $passage_ligne;
+        $message .= "--" . $separator_msg . $passage_ligne;
+        //Contenu du message
         if ($this->format == 'html') {
             //Si il y a un message texte avec
             if($this->hasText){
-                //Email format html
-                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
-                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-                $message .= $this->message['html'] . $passage_ligne;
                 //Si il doit y avoir une version texte
                 if(!$this->noText){
-                    //Separateur
-                    $message .= "--" . $separator . $passage_ligne;
                     //Email format text
                     $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
-                    $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-                    $message .= $this->message['txt'] . $passage_ligne;
+                    $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
+                    $message .= $this->message['txt'] . $passage_ligne . $passage_ligne;
+                    //Separateur
+                    $message .= "--" . $separator_msg . $passage_ligne;
                 }
+                //Email format html
+                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
+                $message .= $this->message['html'] . $passage_ligne . $passage_ligne;
             }
             //Sinon création avec un message texte
             else {
-                //Email format html
-                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
-                $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-                $message .= $this->message . $passage_ligne;
                 //Si il doit y avoir une version texte
                 if(!$this->noText){
-                    //Separateur
-                    $message .= "--" . $separator . $passage_ligne;
                     //Email format text
                     $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
-                    $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-                    $message .= strip_tags($this->message) . $passage_ligne;
+                    $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
+                    $message .= strip_tags($this->message) . $passage_ligne . $passage_ligne;
+                    //Separateur
+                    $message .= "--" . $separator_msg . $passage_ligne;
                 }
+                //Email format html
+                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
+                $message .= $this->message . $passage_ligne . $passage_ligne;
             } 
         } else {
             //Email format text
             $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
-            $message .= "Content-Transfer-Encoding: 8bit" . $passage_ligne;
-            $message .= $this->message . $passage_ligne;
+            $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
+            $message .= $this->message . $passage_ligne . $passage_ligne;
         }
+        //Fin bordure message
+        $message .= "--" . $separator_msg . "--" . $passage_ligne . $passage_ligne;
 
         //Piece jointe de l'email
         if ($this->attach !== null) {
             foreach ($this->attach as $pj) {
                 $content = chunk_split(base64_encode(file_get_contents($pj['path'])));
                 $message .= "--" . $separator . $passage_ligne;
-                $message .= "Content-Type: " . mime_content_type($pj['path']) . "; name=\"" . $pj['name'] . "\"" . $passage_ligne;
+                $message .= "Content-Type: " . mime_content_type($pj['path']) . "; name=\"" . $pj['path'] . "\"" . $passage_ligne;
                 $message .= "Content-Transfer-Encoding: base64" . $passage_ligne;
-                $message .= "Content-Disposition: attachment; size=" . filesize($pj['path']) . $passage_ligne;
+                $message .= "Content-Disposition: attachment; filename=\"" . $pj['name'] . "\"; size=" . filesize($pj['path']) . $passage_ligne;
                 $message .= $content . $passage_ligne;
             }
         }
