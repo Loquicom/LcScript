@@ -439,35 +439,35 @@ class LcEmail {
         if ($this->format == 'html') {
             //Si il y a un message texte avec
             if($this->hasText){
-                //Email format html
-                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
-                $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
-                $message .= $this->message['html'] . $passage_ligne . $passage_ligne;
                 //Si il doit y avoir une version texte
                 if(!$this->noText){
-                    //Separateur
-                    $message .= "--" . $separator_msg . $passage_ligne;
                     //Email format text
                     $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
                     $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
                     $message .= $this->message['txt'] . $passage_ligne . $passage_ligne;
+                    //Separateur
+                    $message .= "--" . $separator_msg . $passage_ligne;
                 }
-            }
-            //Sinon création avec un message texte
-            else {
                 //Email format html
                 $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
                 $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
-                $message .= $this->message . $passage_ligne . $passage_ligne;
+                $message .= $this->message['html'] . $passage_ligne . $passage_ligne;
+            }
+            //Sinon création avec un message texte
+            else {
                 //Si il doit y avoir une version texte
                 if(!$this->noText){
-                    //Separateur
-                    $message .= "--" . $separator_msg . $passage_ligne;
                     //Email format text
                     $message .= "Content-Type: text/plain; charset=\"utf-8\"" . $passage_ligne;
                     $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
                     $message .= strip_tags($this->message) . $passage_ligne . $passage_ligne;
+                    //Separateur
+                    $message .= "--" . $separator_msg . $passage_ligne;
                 }
+                //Email format html
+                $message .= "Content-Type: text/html; charset=\"utf-8\"" . $passage_ligne;
+                $message .= "Content-Transfer-Encoding: quoted-printable" . $passage_ligne . $passage_ligne;
+                $message .= $this->message . $passage_ligne . $passage_ligne;
             } 
         } else {
             //Email format text
