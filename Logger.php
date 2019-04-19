@@ -231,9 +231,9 @@ class Logger {
             }
             return;
         }
-        //Verif que le log n'est pas vide ou finit
+        //Verif que le log n'est pas vide, finit ou le fd null
         $this->not_end($name);
-        if($this->log[$name] === '') {
+        if($this->fd[$name] === null || $this->log[$name] === '') {
             return;
         }
         //Ecriture du log
