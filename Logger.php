@@ -1,4 +1,11 @@
 <?php
+/* ==============================================================================
+  Fraquicom [PHP Framework] by Loquicom <contact@loquicom.fr>
+
+  GPL-3.0
+  Logger.php
+  ============================================================================ */
+defined('FC_INI') or exit('Acces Denied');
 
 class Logger {
 
@@ -84,29 +91,9 @@ class Logger {
             $file = 'log-' . date('dmY-His');
         } 
         //Recup des parametres
-        $this->name[] = $name;
-        $this->file[$name] = $file;
-        //Creation 1er log
-        if($overwrite) {
-            $fd_trace = fopen($file . '-trace.log', 'w');
-            if(self::$only_trace) {
-                $fd = null; 
-            } else {
-                $fd = fopen($file . '.log', 'w');
-            }
-        } else {
-            $fd_trace = fopen($file . '-trace.log', 'a');
-            if(self::$only_trace) {
-                $fd = null;   
-            } else {
-                $fd = fopen($file . '.log', 'w');
-            }
-        }
-        if($fd === false || $fd_trace === false) {
-            throw new LoggerException("Unable to open log files");
-        }
-        $this->fd[$name] = $fd;
-        $this->fd_trace[$name] = $fd_trace;
+        $this->name[$name] = $name;
+        //Ouverture fichier
+        $this->open_file($name, $file, $overwrite);
         $this->end[$name] = false;
         $this->active = $name;
         $this->begin_log($name);
@@ -130,38 +117,8 @@ class Logger {
             throw new LoggerException("File of the log already in use");
         }
         //Creation du nouveau log
-        $this->name[] = $name;
-        if($file === null) {
-            $this->file[$name] = $this->file[$this->active];
-            $this->fd_trace[$name] = $this->fd_trace[$this->active];
-            if(self::$only_trace) {
-                $this->fd[$name] = null;
-            } else {
-                $this->fd[$name] = $this->fd[$this->active];
-            }
-        } else {
-            $this->file[$name] = $file;
-            if($overwrite) {                
-                $fd_trace = fopen($file . '-trace.log', 'w');
-                if(self::$only_trace) {
-                    $fd = null;
-                } else {
-                    $fd = fopen($file . '.log', 'w');
-                }
-            } else {
-                $fd_trace = fopen($file . '-trace.log', 'a');
-                if(self::$only_trace) {
-                    $fd = null;
-                } else {
-                    $fd = fopen($file . '.log', 'a');
-                }
-            }
-            if($fd === false || $fd_trace === false) {
-                throw new LoggerException("Unable to open log files");
-            }
-            $this->fd[$name] = $fd;
-            $this->fd_trace[$name] = $fd_trace;
-        }
+        $this->name[$name] = $name;
+        $this->open_file($name, $file, $overwrite);
         $this->end[$name] = false;
         $this->begin_log($name);
         //Si on le rend actif
@@ -233,7 +190,7 @@ class Logger {
         }
         //Verif que le log n'est pas vide, finit ou le fd null
         $this->not_end($name);
-        if($this->fd[$name] === null || $this->log[$name] === '') {
+        if($this->fd[$name] === null || $this->log[$name] === '' || strlen($this->log[$name]) == 56 + strlen($name)) {
             return;
         }
         //Ecriture du log
@@ -280,6 +237,7 @@ class Logger {
             fclose($this->fd[$name]);
         }
         $this->end[$name] = true;
+        unset($this->name[$name]);
     }
 
     /**
@@ -314,6 +272,45 @@ class Logger {
     }
 
     /* --- Fonctions privées --- */
+
+    protected function open_file(string $name, string $file = null, bool $overwrite = false) {
+        //Si file est null et qu'il n'y a pas plus de fichier ouvert
+        if($file === null && (!isset($this->fd_tace[$this->active]) || $this->fd_tace[$this->active] === null || get_resource_type($this->fd_tace[$this->active]) === 'Unknown')) {
+            $file = $this->file[$this->active];
+        }
+        //Creation fichier
+        if($file === null) {
+            $this->file[$name] = $this->file[$this->active];
+            $this->fd_trace[$name] = $this->fd_trace[$this->active];
+            if(self::$only_trace) {
+                $this->fd[$name] = null;
+            } else {
+                $this->fd[$name] = $this->fd[$this->active];
+            }
+        } else {
+            $this->file[$name] = $file;
+            if($overwrite) {                
+                $fd_trace = fopen($file . '-trace.log', 'w');
+                if(self::$only_trace) {
+                    $fd = null;
+                } else {
+                    $fd = fopen($file . '.log', 'w');
+                }
+            } else {
+                $fd_trace = fopen($file . '-trace.log', 'a');
+                if(self::$only_trace) {
+                    $fd = null;
+                } else {
+                    $fd = fopen($file . '.log', 'a');
+                }
+            }
+            if($fd === false || $fd_trace === false) {
+                throw new LoggerException("Unable to open log files");
+            }
+            $this->fd[$name] = $fd;
+            $this->fd_trace[$name] = $fd_trace;
+        }
+    }
 
     protected function begin_log(string $name) {
         $this->time[$name] = time();
